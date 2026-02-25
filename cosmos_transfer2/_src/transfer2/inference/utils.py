@@ -592,17 +592,26 @@ def _compute_depth_maps(video_np: np.ndarray) -> torch.Tensor | None:
         or None if computation fails
     """
     try:
+        from cosmos_transfer2._src.transfer2.auxiliary.depth_anything.depth_anything_v2 import DepthAnythingV2Model
         from cosmos_transfer2._src.transfer2.auxiliary.depth_anything.video_depth_anything import (
             VideoDepthAnythingModel,
+            is_video_depth_anything_available,
         )
 
         log.info(f"Computing depth for video with shape {video_np.shape}...")
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        log.info("Using VideoDepthAnything")
-        model = VideoDepthAnythingModel(device=device)
-        model.setup()
-        depth_maps = model.generate(video_np)
+        # Use VideoDepthAnything for temporal consistency, fallback to DepthAnythingV2
+        if is_video_depth_anything_available():
+            log.info("Using VideoDepthAnything (temporally consistent)")
+            model = VideoDepthAnythingModel(device=device)
+            model.setup()
+            depth_maps = model.generate(video_np)
+        else:
+            log.info("Using DepthAnythingV2 (frame-by-frame)")
+            model = DepthAnythingV2Model(device=device)
+            model.setup()
+            depth_maps = model.generate_float16_array_from_video_array(video_np)
 
         # Normalize to [0, 255]
         depth_tensor = torch.from_numpy(depth_maps.astype(np.float32))
