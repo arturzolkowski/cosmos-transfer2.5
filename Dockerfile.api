@@ -1,0 +1,26 @@
+# Dockerfile.api — Cosmos Transfer2.5 benchmark API container
+#
+# Thin wrapper over the nightly base image that sets the default command
+# to launch nim_api_persistent.py. The script and all dependencies
+# (fastapi, uvicorn, etc.) are already present in the base image.
+#
+# Step 1 — build the nightly base image:
+#   docker build -f docker/nightly.Dockerfile -t cosmos-transfer2.5:nightly .
+#
+# Step 2 — build this image:
+#   docker build -f Dockerfile.api -t cosmos-transfer2.5-api:latest .
+#
+# Run (2 GPUs):
+#   docker run --gpus all --ipc=host --ulimit memlock=-1 \
+#     -e MASTER_ADDR=localhost -e MASTER_PORT=29500 \
+#     -p 8000:8000 \
+#     cosmos-transfer2.5-api:latest \
+#     torchrun --nproc_per_node=2 /workspace/nim_api_persistent.py
+
+ARG BASE_IMAGE=cosmos-transfer2.5:nightly
+FROM ${BASE_IMAGE}
+
+EXPOSE 8000
+
+# Default: single-GPU. For multi-GPU pass torchrun as the command (see above).
+CMD ["python3", "/workspace/nim_api_persistent.py"]
